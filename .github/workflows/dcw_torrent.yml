@@ -22,6 +22,18 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.14"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+
+      - name: Cache APT packages (aria2 & ffmpeg)
+        id: apt-cache
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-aria2-ffmpeg-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-aria2-ffmpeg-
 
       - name: Install aria2 and ffmpeg
         run: |
@@ -36,7 +48,7 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install requests python-dotenv
 
-      - name: Run main.py with torrent source
+      - name: Run simple_main.py with torrent source
         run: |
           set -euo pipefail
-          python main.py "${{ inputs.torrent_source }}"
+          python simple_main.py "${{ inputs.torrent_source }}"
