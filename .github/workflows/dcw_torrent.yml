@@ -1,0 +1,42 @@
+name: Torrent Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      torrent_source:
+        description: "Magnet URI, HTTP(S) .torrent URL, or local .torrent path"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  run-torrent-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install aria2 and ffmpeg
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends aria2 ffmpeg
+
+      - name: Install Python dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install requests python-dotenv
+
+      - name: Run main.py with torrent source
+        run: |
+          set -euo pipefail
+          python main.py "${{ inputs.torrent_source }}"
