@@ -21,7 +21,7 @@ def _resolve_source(source: str | None = None) -> str:
     if len(sys.argv) > 1 and sys.argv[1].strip():
         return sys.argv[1].strip()
 
-    env_source = os.getenv("TORRENT_SOURCE", "magnet:?xt=urn:btih:E0967BA97154D64A8D274F02BB10D57CA3ADA5E6&dn=Spider-Man%3A%20Brand%20New%20Day%20%282026%29%20%5B1080p%5D%20%5Bweb%5D%20%5BYTS%5D&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.moeblog.cn%3A443%2Fannounce&tr=udp%3A%2F%2Fopen.dstud.io%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.srv00.com%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=https%3A%2F%2Ftracker.pmman.tech%3A443%2Fannounce").strip()
+    env_source = os.getenv("TORRENT_SOURCE", "").strip()
     if env_source:
         return env_source
 

@@ -13,7 +13,7 @@ class MediaProcessError(RuntimeError):
 
 
 class MediaProcessor:
-    """Compress videos, extract embedded subtitles, and copy external subtitles."""
+    """Compress videos, extract embedded subtitles, and mirror subtitle files."""
 
     VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".webm", ".flv", ".wmv", ".m4v"}
     SUBTITLE_EXTENSIONS = {".srt", ".ass", ".ssa", ".vtt", ".sub"}
@@ -228,37 +228,29 @@ class MediaProcessor:
             except (subprocess.CalledProcessError, OSError):
                 print(f"[WARN] Failed to extract subtitle stream {stream_index} from {video_path.name}")
 
-    def _copy_external_subtitles(self, video_path: Path, target_folder: Path) -> None:
-        """Copy external subtitle files matching video_path stem into target_folder."""
-        # Collect external subtitle files that belong to this video stem (e.g. movie.srt or movie.en.srt).
+    def _copy_tree_subtitles(self, root_source: Path) -> None:
+        """Recursively copy all subtitle files under root_source preserving relative paths."""
+        # Scan all nested folders inside source_dir so standalone or multi-track subtitles are mirrored.
         try:
-            candidates = [
-                p for p in video_path.parent.iterdir()
-                if p.is_file()
-                and not p.is_symlink()
-                and p.suffix.lower() in self.SUBTITLE_EXTENSIONS
-                and (p.stem == video_path.stem or p.stem.startswith(f"{video_path.stem}."))
-            ]
+            subtitle_files = sorted(
+                p for p in root_source.rglob("*")
+                if p.is_file() and not p.is_symlink() and p.suffix.lower() in self.SUBTITLE_EXTENSIONS
+            )
         except OSError as exc:
-            print(f"[WARN] Could not scan external subtitles near '{video_path.name}': {exc}")
+            print(f"[WARN] Could not scan subtitles under '{root_source}': {exc}")
             return
 
-        if not candidates:
-            return
-
-        try:
-            target_folder.mkdir(parents=True, exist_ok=True)
-        except OSError as exc:
-            print(f"[WARN] Could not create subtitle folder '{target_folder}': {exc}")
-            return
-
-        for sub_file in sorted(candidates):
-            dest_file = target_folder / sub_file.name
+        for sub_file in subtitle_files:
             try:
+                rel_path = sub_file.relative_to(root_source)
+                dest_file = (self.output_dir / rel_path).resolve()
+                # Ensure destination stays strictly inside output_dir before writing.
+                dest_file.relative_to(self.output_dir)
+                dest_file.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(sub_file, dest_file)
-                print(f"[INFO] Copied external subtitle: {sub_file.name} -> {dest_file}")
-            except OSError as exc:
-                print(f"[WARN] Failed to copy subtitle '{sub_file.name}': {exc}")
+                print(f"[INFO] Copied subtitle: {rel_path}")
+            except (OSError, ValueError) as exc:
+                print(f"[WARN] Failed copying subtitle '{sub_file.name}': {exc}")
 
     def _compress_video(self, ffmpeg_exec: str, video_path: Path, output_video: Path) -> Path:
         """Transcode video safely via a temporary file and atomically replace target on success."""
@@ -314,10 +306,7 @@ class MediaProcessor:
         compressed_video_path: Path,
         subtitles_dir: Path,
     ) -> None:
-        """Handle external/embedded subtitles and compress video if not already healthy."""
-        # Always sync external subtitles even if the compressed video is already up to date.
-        self._copy_external_subtitles(video_path, subtitles_dir)
-
+        """Run two-stage skip check; otherwise extract subtitles and compress video."""
         if self._should_skip_video(ffmpeg_exec, ffprobe_exec, compressed_video_path):
             print(f"[INFO] Skipping valid existing output: {compressed_video_path}")
             return
@@ -332,6 +321,8 @@ class MediaProcessor:
             raise MediaProcessError(f"Source directory does not exist: {root_source}")
 
         ffmpeg_exec, ffprobe_exec = self._check_binaries()
+        self._copy_tree_subtitles(root_source)
+
         try:
             video_files = sorted(
                 p for p in root_source.rglob("*")
