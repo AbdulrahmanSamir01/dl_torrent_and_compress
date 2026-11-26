@@ -3,9 +3,29 @@ name: Torrent Pipeline
 on:
   workflow_dispatch:
     inputs:
-      torrent_source:
-        description: "Magnet URI, HTTP(S) .torrent URL, or local .torrent path"
+      torrent_1:
+        description: "Torrent source #1 (required)"
         required: true
+        type: string
+      torrent_2:
+        description: "Torrent source #2 (optional)"
+        required: false
+        type: string
+      torrent_3:
+        description: "Torrent source #3 (optional)"
+        required: false
+        type: string
+      torrent_4:
+        description: "Torrent source #4 (optional)"
+        required: false
+        type: string
+      torrent_5:
+        description: "Torrent source #5 (optional)"
+        required: false
+        type: string
+      torrent_6:
+        description: "Torrent source #6 (optional)"
+        required: false
         type: string
 
 permissions:
@@ -48,7 +68,27 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install requests python-dotenv
 
-      - name: Run simple_main.py with torrent source
+      - name: Run simple_main.py for each provided torrent source
+        env:
+          T1: ${{ inputs.torrent_1 }}
+          T2: ${{ inputs.torrent_2 }}
+          T3: ${{ inputs.torrent_3 }}
+          T4: ${{ inputs.torrent_4 }}
+          T5: ${{ inputs.torrent_5 }}
+          T6: ${{ inputs.torrent_6 }}
         run: |
           set -euo pipefail
-          python simple_main.py "${{ inputs.torrent_source }}"
+          count=0
+          for raw_val in "$T1" "$T2" "$T3" "$T4" "$T5" "$T6"; do
+            cleaned_val="$(printf '%s' "$raw_val" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+            [ -z "$cleaned_val" ] && continue
+
+            count=$((count + 1))
+            echo "=== [$count] Running simple_main.py ==="
+            python simple_main.py "$cleaned_val"
+          done
+
+          if [ "$count" -eq 0 ]; then
+            echo "No valid torrent sources provided." >&2
+            exit 1
+          fi
